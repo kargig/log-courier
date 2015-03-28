@@ -28,7 +28,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/driskell/log-courier/src/lc-lib/core"
-	"github.com/driskell/log-courier/src/lc-lib/publisher"
+	"github.com/driskell/log-courier/src/lc-lib/endpoint"
 	"io/ioutil"
 	"net"
 	"regexp"
@@ -69,7 +69,7 @@ type TransportTcp struct {
 
 	controllerChan chan int
 	controllerWait sync.WaitGroup
-	endpoint *publisher.EndpointRemote
+	endpoint *endpoint.Remote
 	fail_chan chan error
 
 	wait     sync.WaitGroup
@@ -147,8 +147,8 @@ func NewTransportTcpFactory(config *core.Config, config_path string, unused map[
 // NewTransport returns a new Transport interface using the settings from the
 // TransportTcpFactory.
 func (f *TransportTcpFactory) NewTransport(iendpoint interface{}) core.Transport {
-	// TODO: Remove hack for stopping EndpointRemote needing to be in core
-	endpoint := iendpoint.(*publisher.EndpointRemote)
+	// TODO: Remove hack for stopping Remote needing to be in core
+	endpoint := iendpoint.(*endpoint.Remote)
 
 	ret := &TransportTcp{
 		config: f,
@@ -408,7 +408,7 @@ ReceiverLoop:
 
 		switch {
 		case bytes.Compare(header[0:4], []byte("PONG")) == 0:
-			if shutdown = t.sendResponse(&publisher.PongResponse{}); shutdown {
+			if shutdown = t.sendResponse(&endpoint.PongResponse{}); shutdown {
 				break ReceiverLoop
 			}
 		case bytes.Compare(header[0:4], []byte("ACKN")) == 0:
@@ -480,7 +480,7 @@ func (t *TransportTcp) processAckn(data []byte) (bool, error) {
 		return false, fmt.Errorf("Protocol error: Corrupt message (ACKN size %d != 20)", len(data))
 	}
 
-	return t.sendResponse(&publisher.AckResponse{string(data[0:16]), binary.BigEndian.Uint32(data[16:20])}), nil
+	return t.sendResponse(&endpoint.AckResponse{string(data[0:16]), binary.BigEndian.Uint32(data[16:20])}), nil
 }
 
 // sendResponse ships a response to the Publisher whilst also monitoring for any
@@ -495,17 +495,14 @@ func (t *TransportTcp) sendResponse(response interface{}) bool {
 }
 
 // Write a message to the transport
-func (t *TransportTcp) Write(ipayload interface{}) error {
-	// TODO: This is a hack to prevent us having to put PendingPayload in core
-	payload := ipayload.(*publisher.PendingPayload)
-
+func (t *TransportTcp) Write(nonce string, events []*core.EventDescriptor) error {
 	var dataBuffer bytes.Buffer
 
 	// Create the compressed data payload
 	// 16-byte Nonce, followed by the compressed event data
 	// The event data is each event, prefixed with a 4-byte uint32 length, one
 	// after the other
-	if _, err := dataBuffer.Write([]byte(payload.Nonce)); err != nil {
+	if _, err := dataBuffer.Write([]byte(nonce)); err != nil {
 		return err
 	}
 
@@ -514,7 +511,7 @@ func (t *TransportTcp) Write(ipayload interface{}) error {
 		return err
 	}
 
-	for _, event := range payload.Events() {
+	for _, event := range events {
 		if err := binary.Write(compressor, binary.BigEndian, uint32(len(event.Event))); err != nil {
 			return err
 		}
