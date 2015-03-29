@@ -21,6 +21,8 @@ package harvester
 
 import (
 	"fmt"
+	"github.com/driskell/log-courier/src/lc-lib/codecs"
+	"github.com/driskell/log-courier/src/lc-lib/config"
 	"github.com/driskell/log-courier/src/lc-lib/core"
 	"io"
 	"os"
@@ -43,11 +45,11 @@ type Harvester struct {
 	stream        core.Stream
 	fileinfo      os.FileInfo
 	path          string
-	config        *core.Config
-	stream_config *core.StreamConfig
+	config        *config.Config
+	stream_config *config.Stream
 	offset        int64
 	output        chan<- *core.EventDescriptor
-	codec         core.Codec
+	codec         codecs.Codec
 	file          *os.File
 	split         bool
 
@@ -59,7 +61,7 @@ type Harvester struct {
 	last_eof     *time.Time
 }
 
-func NewHarvester(stream core.Stream, config *core.Config, stream_config *core.StreamConfig, offset int64) *Harvester {
+func NewHarvester(stream core.Stream, config *config.Config, stream_config *config.Stream, offset int64) *Harvester {
 	var fileinfo os.FileInfo
 	var path string
 
@@ -82,7 +84,7 @@ func NewHarvester(stream core.Stream, config *core.Config, stream_config *core.S
 		last_eof:      nil,
 	}
 
-	ret.codec = stream_config.CodecFactory.NewCodec(ret.eventCallback, ret.offset)
+	ret.codec = codecs.NewCodec(stream_config.Codec.Factory, ret.eventCallback, ret.offset)
 
 	return ret
 }
