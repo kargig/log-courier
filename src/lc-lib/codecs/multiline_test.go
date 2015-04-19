@@ -1,18 +1,18 @@
 package codecs
 
 import (
-	"github.com/driskell/log-courier/src/lc-lib/core"
+	"github.com/driskell/log-courier/src/lc-lib/config"
 	"sync"
 	"testing"
 	"time"
 )
 
-var multiline_t *testing.T
-var multiline_lines int
-var multiline_lock sync.Mutex
+var multilineTest *testing.T
+var multilineLines int
+var multilineLock sync.Mutex
 
-func createMultilineCodec(unused map[string]interface{}, callback core.CodecCallbackFunc, t *testing.T) core.Codec {
-	config := core.NewConfig()
+func createMultilineCodec(unused map[string]interface{}, callback CallbackFunc, t *testing.T) Codec {
+	config := config.NewConfig()
 	config.General.MaxLineBytes = 1048576
 	config.General.SpoolMaxBytes = 10485760
 
@@ -22,52 +22,52 @@ func createMultilineCodec(unused map[string]interface{}, callback core.CodecCall
 		t.FailNow()
 	}
 
-	return factory.NewCodec(callback, 0)
+	return NewCodec(factory, callback, 0)
 }
 
-func checkMultiline(start_offset int64, end_offset int64, text string) {
-	multiline_lock.Lock()
-	defer multiline_lock.Unlock()
-	multiline_lines++
+func checkMultiline(startOffset int64, endOffset int64, text string) {
+	multilineLock.Lock()
+	defer multilineLock.Unlock()
+	multilineLines++
 
-	if multiline_lines == 1 {
+	if multilineLines == 1 {
 		if text != "DEBUG First line\nNEXT line\nANOTHER line" {
-			multiline_t.Logf("Event data incorrect [% X]", text)
-			multiline_t.FailNow()
+			multilineTest.Logf("Event data incorrect [% X]", text)
+			multilineTest.FailNow()
 		}
 
-		if start_offset != 0 {
-			multiline_t.Logf("Event start offset is incorrect [%d]", start_offset)
-			multiline_t.FailNow()
+		if startOffset != 0 {
+			multilineTest.Logf("Event start offset is incorrect [%d]", startOffset)
+			multilineTest.FailNow()
 		}
 
-		if end_offset != 5 {
-			multiline_t.Logf("Event end offset is incorrect [%d]", end_offset)
-			multiline_t.FailNow()
+		if endOffset != 5 {
+			multilineTest.Logf("Event end offset is incorrect [%d]", endOffset)
+			multilineTest.FailNow()
 		}
 
 		return
 	}
 
 	if text != "DEBUG Next line" {
-		multiline_t.Logf("Event data incorrect [% X]", text)
-		multiline_t.FailNow()
+		multilineTest.Logf("Event data incorrect [% X]", text)
+		multilineTest.FailNow()
 	}
 
-	if start_offset != 6 {
-		multiline_t.Logf("Event start offset is incorrect [%d]", start_offset)
-		multiline_t.FailNow()
+	if startOffset != 6 {
+		multilineTest.Logf("Event start offset is incorrect [%d]", startOffset)
+		multilineTest.FailNow()
 	}
 
-	if end_offset != 7 {
-		multiline_t.Logf("Event end offset is incorrect [%d]", end_offset)
-		multiline_t.FailNow()
+	if endOffset != 7 {
+		multilineTest.Logf("Event end offset is incorrect [%d]", endOffset)
+		multilineTest.FailNow()
 	}
 }
 
 func TestMultilinePrevious(t *testing.T) {
-	multiline_t = t
-	multiline_lines = 0
+	multilineTest = t
+	multilineLines = 0
 
 	codec := createMultilineCodec(map[string]interface{}{
 		"pattern": "^(ANOTHER|NEXT) ",
@@ -81,7 +81,7 @@ func TestMultilinePrevious(t *testing.T) {
 	codec.Event(4, 5, "ANOTHER line")
 	codec.Event(6, 7, "DEBUG Next line")
 
-	if multiline_lines != 1 {
+	if multilineLines != 1 {
 		t.Logf("Wrong line count received")
 		t.FailNow()
 	}
@@ -93,8 +93,8 @@ func TestMultilinePrevious(t *testing.T) {
 }
 
 func TestMultilinePreviousNegate(t *testing.T) {
-	multiline_t = t
-	multiline_lines = 0
+	multilineTest = t
+	multilineLines = 0
 
 	codec := createMultilineCodec(map[string]interface{}{
 		"pattern": "^DEBUG ",
@@ -108,7 +108,7 @@ func TestMultilinePreviousNegate(t *testing.T) {
 	codec.Event(4, 5, "ANOTHER line")
 	codec.Event(6, 7, "DEBUG Next line")
 
-	if multiline_lines != 1 {
+	if multilineLines != 1 {
 		t.Logf("Wrong line count received")
 		t.FailNow()
 	}
@@ -120,8 +120,8 @@ func TestMultilinePreviousNegate(t *testing.T) {
 }
 
 func TestMultilinePreviousTimeout(t *testing.T) {
-	multiline_t = t
-	multiline_lines = 0
+	multilineTest = t
+	multilineLines = 0
 
 	codec := createMultilineCodec(map[string]interface{}{
 		"pattern":          "^(ANOTHER|NEXT) ",
@@ -139,22 +139,22 @@ func TestMultilinePreviousTimeout(t *testing.T) {
 	// Allow a second
 	time.Sleep(time.Second)
 
-	multiline_lock.Lock()
-	if multiline_lines != 1 {
+	multilineLock.Lock()
+	if multilineLines != 1 {
 		t.Logf("Timeout triggered too early")
 		t.FailNow()
 	}
-	multiline_lock.Unlock()
+	multilineLock.Unlock()
 
 	// Allow 5 seconds
 	time.Sleep(5 * time.Second)
 
-	multiline_lock.Lock()
-	if multiline_lines != 2 {
+	multilineLock.Lock()
+	if multilineLines != 2 {
 		t.Logf("Wrong line count received")
 		t.FailNow()
 	}
-	multiline_lock.Unlock()
+	multilineLock.Unlock()
 
 	offset := codec.Teardown()
 	if offset != 7 {
@@ -163,8 +163,8 @@ func TestMultilinePreviousTimeout(t *testing.T) {
 }
 
 func TestMultilineNext(t *testing.T) {
-	multiline_t = t
-	multiline_lines = 0
+	multilineTest = t
+	multilineLines = 0
 
 	codec := createMultilineCodec(map[string]interface{}{
 		"pattern": "^(DEBUG|NEXT) ",
@@ -178,7 +178,7 @@ func TestMultilineNext(t *testing.T) {
 	codec.Event(4, 5, "ANOTHER line")
 	codec.Event(6, 7, "DEBUG Next line")
 
-	if multiline_lines != 1 {
+	if multilineLines != 1 {
 		t.Logf("Wrong line count received")
 		t.FailNow()
 	}
@@ -190,8 +190,8 @@ func TestMultilineNext(t *testing.T) {
 }
 
 func TestMultilineNextNegate(t *testing.T) {
-	multiline_t = t
-	multiline_lines = 0
+	multilineTest = t
+	multilineLines = 0
 
 	codec := createMultilineCodec(map[string]interface{}{
 		"pattern": "^ANOTHER ",
@@ -205,7 +205,7 @@ func TestMultilineNextNegate(t *testing.T) {
 	codec.Event(4, 5, "ANOTHER line")
 	codec.Event(6, 7, "DEBUG Next line")
 
-	if multiline_lines != 1 {
+	if multilineLines != 1 {
 		t.Logf("Wrong line count received")
 		t.FailNow()
 	}
@@ -216,27 +216,27 @@ func TestMultilineNextNegate(t *testing.T) {
 	}
 }
 
-func checkMultilineMaxBytes(start_offset int64, end_offset int64, text string) {
-	multiline_lines++
+func checkMultilineMaxBytes(startOffset int64, endOffset int64, text string) {
+	multilineLines++
 
-	if multiline_lines == 1 {
+	if multilineLines == 1 {
 		if text != "DEBUG First line\nsecond line\nthi" {
-			multiline_t.Logf("Event data incorrect [% X]", text)
-			multiline_t.FailNow()
+			multilineTest.Logf("Event data incorrect [% X]", text)
+			multilineTest.FailNow()
 		}
 
 		return
 	}
 
 	if text != "rd line" {
-		multiline_t.Logf("Second event data incorrect [% X]", text)
-		multiline_t.FailNow()
+		multilineTest.Logf("Second event data incorrect [% X]", text)
+		multilineTest.FailNow()
 	}
 }
 
 func TestMultilineMaxBytes(t *testing.T) {
-	multiline_t = t
-	multiline_lines = 0
+	multilineTest = t
+	multilineLines = 0
 
 	codec := createMultilineCodec(map[string]interface{}{
 		"max multiline bytes": int64(32),
@@ -250,7 +250,7 @@ func TestMultilineMaxBytes(t *testing.T) {
 	codec.Event(4, 5, "third line")
 	codec.Event(6, 7, "DEBUG Next line")
 
-	if multiline_lines != 2 {
+	if multilineLines != 2 {
 		t.Logf("Wrong line count received")
 		t.FailNow()
 	}
