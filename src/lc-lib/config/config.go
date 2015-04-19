@@ -368,6 +368,16 @@ func (c *Config) Load(path string) (err error) {
 		return
 	}
 
+	servers := make(map[string]bool)
+	for _, server := range c.Network.Servers {
+		if _, exists := servers[server]; exists {
+			err = fmt.Errorf("The list of network servers must be unique: %s appears more than once", server)
+			return
+		}
+		servers[server] = true
+	}
+	servers = nil
+
 	if c.Network.Transport == "" {
 		c.Network.Transport = default_NetworkConfig_Transport
 	}
