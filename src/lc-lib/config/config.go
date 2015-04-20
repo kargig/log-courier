@@ -98,7 +98,7 @@ type CodecStub struct {
 
 type Stream struct {
 	Fields   map[string]interface{} `config:"fields"`
-	Codec    CodecStub              `config:"codec"`
+	Codecs   []CodecStub            `config:"codecs"`
 	DeadTime time.Duration          `config:"dead time"`
 }
 
@@ -420,7 +420,7 @@ func (c *Config) Load(path string) (err error) {
 			return
 		}
 
-		if err = c.initStreamConfig(fmt.Sprintf("/files[%d]/codec/", k), &c.Files[k].Stream); err != nil {
+		if err = c.initStreamConfig(fmt.Sprintf("/files[%d]", k), &c.Files[k].Stream); err != nil {
 			return
 		}
 	}
@@ -433,16 +433,19 @@ func (c *Config) Load(path string) (err error) {
 }
 
 func (c *Config) initStreamConfig(path string, stream_config *Stream) (err error) {
-	if stream_config.Codec.Name == "" {
-		stream_config.Codec.Name = default_StreamConfig_Codec
+	if len(stream_config.Codecs) == 0 {
+		stream_config.Codecs = []CodecStub{CodecStub{Name: default_StreamConfig_Codec}}
 	}
 
-	if registrarFunc, ok := registeredCodecs[stream_config.Codec.Name]; ok {
-		if stream_config.Codec.Factory, err = registrarFunc(c, path, stream_config.Codec.Unused, stream_config.Codec.Name); err != nil {
-			return
+	for i := 0; i < len(stream_config.Codecs); i++ {
+		codec := &stream_config.Codecs[i]
+		if registrarFunc, ok := registeredCodecs[codec.Name]; ok {
+			if codec.Factory, err = registrarFunc(c, path, codec.Unused, codec.Name); err != nil {
+				return
+			}
+		} else {
+			return fmt.Errorf("Unrecognised codec '%s' for %s", codec.Name, path)
 		}
-	} else {
-		return fmt.Errorf("Unrecognised codec '%s' for %s", stream_config.Codec.Name, path)
 	}
 
 	if stream_config.DeadTime == time.Duration(0) {
