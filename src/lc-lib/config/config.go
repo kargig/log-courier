@@ -75,6 +75,7 @@ type General struct {
 	LogSyslog        bool          `config:"log syslog"`
 	LogFile          string        `config:"log file"`
 	Host             string        `config:"host"`
+	GlobalFields     map[string]interface{} `config:"global fields"`
 }
 
 type Network struct {

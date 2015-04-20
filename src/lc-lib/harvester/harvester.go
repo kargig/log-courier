@@ -298,6 +298,9 @@ func (h *Harvester) eventCallback(start_offset int64, end_offset int64, text str
 		"offset":  start_offset,
 		"message": text,
 	}
+	for k := range h.config.General.GlobalFields {
+		event[k] = h.config.General.GlobalFields[k]
+	}
 	for k := range h.stream_config.Fields {
 		event[k] = h.stream_config.Fields[k]
 	}
