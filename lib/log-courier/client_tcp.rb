@@ -210,7 +210,7 @@ module LogCourier
       @logger.info 'Connecting', :address => address, :port => port unless @logger.nil?
 
       begin
-        tcp_socket = TCPSocket.new(address, port)
+        @tcp_socket = TCPSocket.new(address, port)
 
         if @options[:transport] == 'tls'
           ssl = OpenSSL::SSL::SSLContext.new
@@ -234,14 +234,14 @@ module LogCourier
           ssl.cert_store = cert_store
           ssl.verify_mode = OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
 
-          @ssl_client = OpenSSL::SSL::SSLSocket.new(tcp_socket)
+          @ssl_client = OpenSSL::SSL::SSLSocket.new(@tcp_socket)
 
           socket = @ssl_client.connect
 
           # Verify certificate
           socket.post_connection_check(address)
         else
-          socket = tcp_socket.connect
+          socket = @tcp_socket.connect
         end
 
         # Add extra logging data now we're connected

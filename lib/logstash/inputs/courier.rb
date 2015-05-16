@@ -78,10 +78,15 @@ module LogStash
       public
 
       def register
-        @logger.info 'Starting courier input listener', :address => "#{@host}:#{@port}"
+        # log-courier gem provides cabin-copy patch
+        require 'log-courier/server'
+        logger = @logger.copy
+        logger['plugin'] = 'input/courier'
+
+        logger.info 'Starting courier input listener', :address => "#{@host}:#{@port}"
 
         options = {
-          logger:                @logger,
+          logger:                logger,
           address:               @host,
           port:                  @port,
           transport:             @transport,
@@ -99,7 +104,6 @@ module LogStash
         options[:peer_recv_queue] = @peer_recv_queue unless @peer_recv_queue.nil?
         options[:add_peer_fields] = @add_peer_fields unless @add_peer_fields.nil?
 
-        require 'log-courier/server'
         @log_courier = LogCourier::Server.new options
       end
 

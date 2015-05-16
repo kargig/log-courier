@@ -50,10 +50,15 @@ module LogStash
       public
 
       def register
-        @logger.info 'Starting courier output'
+        # log-courier gem provides cabin-copy patch
+        require 'log-courier/client'
+        logger = @logger.copy
+        logger['plugin'] = 'output/courier'
+
+        logger.info 'Starting courier output'
 
         options = {
-          logger:             @logger,
+          logger:             logger,
           addresses:          @hosts,
           port:               @port,
           ssl_ca:             @ssl_ca,
@@ -64,7 +69,6 @@ module LogStash
           idle_timeout:       @idle_timeout,
         }
 
-        require 'log-courier/client'
         @client = LogCourier::Client.new(options)
       end
 
