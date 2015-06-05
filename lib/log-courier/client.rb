@@ -104,7 +104,7 @@ module LogCourier
       }.merge!(options)
 
       if @options[:logger]
-        @logger = @options[:logger]
+        @logger = @options[:logger].fork(LogCourier)
       else
         @logger = Cabin::Channel.new
       end

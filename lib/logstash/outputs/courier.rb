@@ -50,15 +50,10 @@ module LogStash
       public
 
       def register
-        # log-courier gem provides cabin-copy patch
         require 'log-courier/client'
-        logger = @logger.copy
-        logger['plugin'] = 'output/courier'
-
-        logger.info 'Starting courier output'
 
         options = {
-          logger:             logger,
+          logger:             @logger,
           addresses:          @hosts,
           port:               @port,
           ssl_ca:             @ssl_ca,
